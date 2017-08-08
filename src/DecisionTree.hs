@@ -3,6 +3,7 @@ module DecisionTree(gain
                    ,Label(..)
                    ,choose
                    ,judge
+                   ,extract
                    ,buildTree) where
 
 import           Data.Function
@@ -17,7 +18,7 @@ type Feature = Integer
 type Features = [Feature]
 type Possibility = (Label,Double)
 type Entropy = Double
-newtype Label = Label String deriving (Eq, Ord)
+newtype Label = Label String deriving (Eq, Ord, Show)
 data Example = Example Features Label
 
 type DecisionTree = Example -> Label
@@ -27,10 +28,11 @@ threshold :: Double
 threshold = 0.9
 
 buildTree :: [Example] -> RemainingFeatures -> DecisionTree
-buildTree es rf (Example fs _) = undefined
+buildTree es rf (Example fs _) = fst . maximumBy (comparing snd) $ possibilities
   where best = choose es rf
-        distr = frequency $ map (extractFeatures best) es
         feature = fs !! best
+        possibilities = group $ filter (\(Example fs' _) -> fs' !! best == feature) es
+
 
 buildSubTree :: [Example] -> RemainingFeatures -> [DecisionTree]
 buildSubTree = undefined

@@ -18,3 +18,7 @@ main = hspec $ do
       DT.buildTree [e2, e1, e3] [0, 1] e1 `shouldBe` DT.extract e1
       DT.buildTree [e2, e1, e3] [0, 1] e2 `shouldBe` DT.extract e2
       DT.buildTree [e2, e1, e3] [0, 1] e3 `shouldBe` DT.extract e3
+  describe "read" $ do
+    context "when used with ints" $ do
+      it "is inverse to show" $ property $
+        \x -> (read . show) x == (x :: Int)

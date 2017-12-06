@@ -37,11 +37,11 @@ buildTree es rf (Example fs _) = fst . maximumBy (comparing snd) $ possibilities
 buildSubTree :: [Example] -> RemainingFeatures -> [DecisionTree]
 buildSubTree = undefined
 
-judge :: DecisionTree -> Example -> Label
-judge dt = dt
-
 sayTree :: DecisionTree -> String
 sayTree = undefined
+
+judge :: DecisionTree -> Example -> Label
+judge dt = dt
 
 choose :: [Example] -> [Int] -> Int
 choose es ls = fst . maximumBy (comparing snd) $ featureGain

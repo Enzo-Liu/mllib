@@ -23,5 +23,5 @@ tags
 /_site/
 /.dir-locals.el
 /.git/
-/ml-lib.cabal
+/mllib.cabal
 /etc/scripts/stack-scripts.cabal

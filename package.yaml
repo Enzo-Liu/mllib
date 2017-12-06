@@ -14,6 +14,7 @@ library:
   source-dirs: src
   exposed-modules:
   - Lib
+  - DecisionTree
   dependencies:
   - base >=4.7 && <5
   - containers
@@ -39,3 +40,5 @@ tests:
     dependencies:
     - base
     - mllib
+    - QuickCheck
+    - hspec

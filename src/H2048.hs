@@ -1,12 +1,9 @@
 module H2048 where
 
-import           Control.Applicative
 import           Control.Lens
-import           Control.Monad.Loops (iterateUntilM)
-import           Data.List           (intercalate)
+import           Data.List           (transpose)
 import           Data.List.NonEmpty  (NonEmpty (..))
 import qualified Data.List.NonEmpty  as NE
-import           Data.Maybe
 import           System.Random       (randomRIO)
 
 
@@ -25,13 +22,13 @@ instance Show Board where
     where format = unwords . fmap formatNum
           formatNum n = let ns = show n
                             l = length ns
-                            toFill | l > 4 = l
-                                   | otherwise = l - 4
+                            toFill | l < 4 = 4-l
+                                   | otherwise = l
                         in ns ++ replicate toFill ' '
 instance Eq Board where
   Board{_cells=c1} == Board{_cells=c2} = c1 == c2
 
-data Move = UP | DOWN | LEFT | RIGHT deriving (Show, Eq)
+data Move = UP | DOWN | LEFT | RIGHT deriving (Show, Eq, Read)
 
 makeBoard :: ColSize -> RowSize -> Board
 makeBoard c@(ColSize col) r@(RowSize row) = Board c r board' pos'
@@ -50,12 +47,12 @@ randomValue = pickRandom $ NE.fromList [2, 2, 2, 4]
 
 emptyPos :: Board -> [(Int, Int)]
 emptyPos Board {_cells = cells, _pos = pos} =
-  concat $ map fst . filter (\(_, v) -> v == 0) <$> liftA2 zip pos cells
+  concat $ map fst . filter (\(_, v) -> v == 0) <$> zipWith zip pos cells
 
 addRandom :: Board -> IO (Maybe Board)
 addRandom b@Board {_cells = cells} = do
   v <- randomValue
-  fmap (fmap (\(c,r)-> b {_cells = cells & ix c . ix r .~ v})) (randomPos b)
+  fmap (\(c,r)->b {_cells = cells & ix c . ix r .~ v}) <$> randomPos b
   where
     randomPos = pickRandom' . emptyPos
 
@@ -73,15 +70,41 @@ merge (a:b:xs)
   | a == b = a + b : 0 : merge xs
   | otherwise = a : merge (b : xs)
 
-move :: Move -> Board -> Board
-move LEFT b@Board{_cells=cells} = b {_cells = fmap (squeeze . merge) cells}
-move UP Board{_cells=cells}     = undefined
-move DOWN b                     = undefined
-move RIGHT b                    = undefined
+rotate270 :: Board -> Board
+rotate270 b@Board{_cells=cells} = b {_cells = rotate' cells}
+  where rotate' = reverse . transpose
 
-main = let b = makeBoard (ColSize 4) (RowSize 4) in
-  flip (iterateUntilM isNothing) (Just b) $ \b' -> do
-    let b'' = move LEFT . fromJust $ b'
-    print b''
-    jb <- addRandom  b''
-    return jb
+rotate90 :: Board -> Board
+rotate90 b@Board{_cells=cells} = b {_cells = rotate' cells}
+  where rotate' = transpose . reverse
+
+rotate180 :: Board -> Board
+rotate180 = rotate90 . rotate90
+
+moveLeft :: Board -> Board
+moveLeft b@Board{_cells=cells} = b {_cells = fmap (squeeze . merge. squeeze) cells}
+
+move :: Move -> Board -> Board
+move LEFT  = moveLeft
+move DOWN  = rotate270 . moveLeft . rotate90
+move UP    = rotate90 . moveLeft . rotate270
+move RIGHT = rotate180 . moveLeft . rotate180
+
+getMove :: IO Move
+getMove = fmap read getLine
+
+main :: IO ()
+main = do
+  b <- addRandom $ makeBoard (ColSize 4) (RowSize 4)
+  loop b
+  where
+    loop :: Maybe Board -> IO ()
+    loop Nothing  = print "failed"
+    loop (Just b) = print b >> move' b
+    move' :: Board -> IO ()
+    move' b = do
+      m <- getMove
+      let b' = move m b
+      if b' == b
+        then print "please input UP/DOWN/LEFT/RIGHT" >> move' b
+        else addRandom b' >>= loop

@@ -89,22 +89,3 @@ move LEFT  = moveLeft
 move DOWN  = rotate270 . moveLeft . rotate90
 move UP    = rotate90 . moveLeft . rotate270
 move RIGHT = rotate180 . moveLeft . rotate180
-
-getMove :: IO Move
-getMove = fmap read getLine
-
-main :: IO ()
-main = do
-  b <- addRandom $ makeBoard (ColSize 4) (RowSize 4)
-  loop b
-  where
-    loop :: Maybe Board -> IO ()
-    loop Nothing  = print "failed"
-    loop (Just b) = print b >> move' b
-    move' :: Board -> IO ()
-    move' b = do
-      m <- getMove
-      let b' = move m b
-      if b' == b
-        then print "please input UP/DOWN/LEFT/RIGHT" >> move' b
-        else addRandom b' >>= loop

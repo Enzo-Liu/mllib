@@ -15,6 +15,7 @@ library:
   exposed-modules:
   - Lib
   - DecisionTree
+  - H2048
   dependencies:
   - base >=4.7 && <5
   - containers
@@ -33,6 +34,8 @@ executables:
     dependencies:
     - base
     - mllib
+    - brick
+    - vty
 tests:
   mllib-test:
     main: Spec.hs

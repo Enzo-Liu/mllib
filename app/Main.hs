@@ -1,6 +1,6 @@
 module Main where
 
-import Lib
+import H2048UI
 
 main :: IO ()
-main = someFunc
+main = h2048UI

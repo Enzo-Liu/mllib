@@ -24,6 +24,7 @@ library:
   - random
   - semigroups
   - monad-loops
+  - data-ordlist
 executables:
   mllib-exe:
     main: Main.hs

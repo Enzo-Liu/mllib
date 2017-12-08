@@ -9,6 +9,8 @@ module AI.H2048.Core
   , pickRandom'
   , Board(..)
   , emptyCellNum
+  , emptyPos
+  , move
   ) where
 
 import           H2048

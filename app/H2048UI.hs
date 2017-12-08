@@ -146,8 +146,8 @@ cw i = str $ formatNum i
       let ns = show n
           l = length ns
           toFill
-            | l < 4 = 4 - l
-            | otherwise = l
+            | l <= 4 = 4 - l
+            | otherwise = 0
       in ns ++ replicate toFill ' '
 
 attr :: Int -> AttrName

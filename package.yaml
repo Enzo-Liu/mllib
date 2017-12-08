@@ -16,6 +16,7 @@ library:
   - Lib
   - DecisionTree
   - H2048
+  - H2048AI
   dependencies:
   - base >=4.7 && <5
   - containers

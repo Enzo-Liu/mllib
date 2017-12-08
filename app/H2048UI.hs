@@ -3,14 +3,19 @@
 module H2048UI where
 
 import           Brick
+import           Brick.BChan
 import qualified Brick.Widgets.Border       as B
 import qualified Brick.Widgets.Border.Style as BS
 import qualified Brick.Widgets.Center       as C
-import           Control.Monad              (void)
+import           Control.Concurrent         (forkIO, threadDelay)
+import           Control.Monad              (forever, void)
 import           Control.Monad.IO.Class
+import           Data.List                  (find)
 import           Data.Maybe
 import qualified Graphics.Vty               as V
 import           H2048
+import           H2048AI
+
 
 -- | Named resources
 --
@@ -18,7 +23,16 @@ import           H2048
 -- if we call this "Name" now.
 type Name = ()
 
-app :: App Board () Name
+data Tick = Tick
+
+data Game = Game
+  { _board :: Board
+  , _players :: [Player]
+  , _failed :: Bool
+  , _selected :: Maybe Player
+  }
+
+app :: App Game Tick Name
 app = App { appDraw = drawUI
           , appChooseCursor = neverShowCursor
           , appHandleEvent = handleEvent
@@ -26,37 +40,88 @@ app = App { appDraw = drawUI
           , appAttrMap = const theMap
           }
 
-continueMove :: Move -> Board -> EventM Name (Next Board)
-continueMove m b = do
+continueMove :: Move -> Game -> EventM Name (Next Game)
+-- in AI mode, do not respond to move event
+continueMove _ g@Game{_selected=Just _} = continue g
+continueMove m g                        = continueMove' (Just m) g
+
+continueMove' :: Maybe Move -> Game -> EventM Name (Next Game)
+continueMove' Nothing g = continue g{_failed=True}
+continueMove' (Just m) g@Game{_board=b} = do
   let b' = move m b
   if b' == b
-    then continue b
-    else liftIO (addRandom b') >>= (continue . fromJust)
+    then continue g
+    else liftIO (addRandom b') >>= (continue .(\nb-> g{_board=nb}). fromJust)
+
 
 -- Handling events
-handleEvent :: Board -> BrickEvent Name () -> EventM Name (Next Board)
-handleEvent b (VtyEvent (V.EvKey V.KUp []))         = continueMove UP b
-handleEvent b (VtyEvent (V.EvKey V.KDown []))       = continueMove DOWN b
-handleEvent b (VtyEvent (V.EvKey V.KRight []))      = continueMove RIGHT b
-handleEvent b (VtyEvent (V.EvKey V.KLeft []))       = continueMove LEFT b
+handleEvent :: Game -> BrickEvent Name Tick -> EventM Name (Next Game)
+handleEvent b (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt b
+handleEvent b (VtyEvent (V.EvKey V.KEsc []))        = halt b
+handleEvent _ (VtyEvent (V.EvKey (V.KChar 'r') [])) = liftIO initGame >>= continue
+handleEvent g@Game{_failed=True} _ = continue g
+handleEvent g@Game {_selected = Just p, _board = b} (AppEvent Tick) =
+  liftIO (getMove p b) >>= \m -> continueMove' m g
 handleEvent b (VtyEvent (V.EvKey (V.KChar 'k') [])) = continueMove UP b
 handleEvent b (VtyEvent (V.EvKey (V.KChar 'j') [])) = continueMove DOWN b
 handleEvent b (VtyEvent (V.EvKey (V.KChar 'l') [])) = continueMove RIGHT b
 handleEvent b (VtyEvent (V.EvKey (V.KChar 'h') [])) = continueMove LEFT b
-handleEvent _ (VtyEvent (V.EvKey (V.KChar 'r') [])) = liftIO initBoard >>= continue
-handleEvent b (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt b
-handleEvent b (VtyEvent (V.EvKey V.KEsc []))        = halt b
+handleEvent g (VtyEvent (V.EvKey (V.KChar 'H') [])) = selectPlayer g Nothing
+handleEvent g@Game{_players=players} (VtyEvent (V.EvKey (V.KChar c) [])) |
+  isJust matchedPlayer = selectPlayer g matchedPlayer
+  where matchedPlayer = find ((c ==) . head . playerName) players
 handleEvent b _                                     = continue b
 
--- Drawing
+selectPlayer :: Game -> Maybe Player -> EventM Name (Next Game)
+selectPlayer g@Game{_selected = p} mp
+  | p == mp = continue g
+  | otherwise = do
+      b <- liftIO initBoard
+      continue g{_board=b,_selected=mp}
 
+-- Drawing
 newtype Cell = Cell Int
 
-drawUI :: Board -> [Widget Name]
-drawUI b = [drawCells b]
+drawUI :: Game -> [Widget Name]
+drawUI g =
+  [ C.vCenter $
+    vLimit 22 $
+    hBox
+      [ padLeft Max $ padRight (Pad 2) $ drawStatus g
+      , drawCells (_board g)
+      , padRight Max $ padLeft (Pad 2) $ drawPlayers (_players g)
+      ]
+  ]
+
+drawPlayers :: [Player] -> Widget Name
+drawPlayers players = hLimit 22 $ withBorderStyle BS.unicodeBold
+  $ B.borderWithLabel (str "AI")
+  $ vBox rows
+  where rows = drawStat "Human" "H":fmap draw' players
+        draw' p = let name = playerName p in drawStat name (take 1 name)
+
+score :: Board -> String
+score = show . sum . fmap sum . _cells
+
+drawStatus :: Game -> Widget Name
+drawStatus Game {_failed = failed, _board = b, _selected = p} =
+  hLimit 22 $
+  withBorderStyle BS.unicodeBold $
+  B.borderWithLabel (str "Stats") $
+  vBox $ if failed
+  then failHint : status
+  else status
+  where
+    name = maybe "Human" playerName p
+    status = [drawStat "Score" (score b), padTop (Pad 1) $ drawStat "Player" name]
+    failHint = padTop (Pad 1) (withAttr "fail" $ drawStat "FAILED" "!!!")
+
+drawStat :: String -> String -> Widget Name
+drawStat s n = padLeftRight 1
+  $ str s <+> padLeft Max (str n)
 
 drawCells :: Board -> Widget Name
-drawCells b = C.center $ withBorderStyle BS.unicodeBold
+drawCells b = hLimit 24 $ withBorderStyle BS.unicodeBold
   $ B.borderWithLabel (str "2048")
   $ vBox rows
   where
@@ -104,18 +169,33 @@ theMap =
     , ("cell512", rgbfg 237 200 80)
     , ("cell1024", rgbfg 237 197 63)
     , ("cell2048", rgbfg 237 194 46)
+    , ("fail", fg V.red)
     ]
   where
     rgbfg :: Integer -> Integer -> Integer -> V.Attr
     rgbfg r g b= fg $ V.rgbColor r g b
 
-getMove :: IO Move
-getMove = fmap read getLine
-
 initBoard :: IO Board
 initBoard = fmap fromJust $ addRandom $ makeBoard (ColSize 4) (RowSize 4)
 
+initGame :: IO Game
+initGame = fmap genGame initBoard
+  where
+    genGame :: Board -> Game
+    genGame b =
+      Game {_board = b,
+            _players = [ randomPlayer
+                       , minmaxPlayer
+                       , exptPlayer
+                       ],
+            _failed = False,
+            _selected = Nothing}
+
 h2048UI :: IO ()
 h2048UI = do
-  b <- initBoard
-  void $ customMain (V.mkVty V.defaultConfig) Nothing app b
+  chan <- newBChan 10
+  _ <- forkIO $ forever $ do
+    writeBChan chan Tick
+    threadDelay 200000
+  g <- initGame
+  void $ customMain (V.mkVty V.defaultConfig) (Just chan) app g

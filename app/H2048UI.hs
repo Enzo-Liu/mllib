@@ -139,14 +139,14 @@ drawCell :: Cell -> Widget Name
 drawCell (Cell n) = withAttr (attr n) $ cw n
 
 cw :: Int -> Widget Name
-cw 0 = str "    "
+cw 0 = str "     "
 cw i = str $ formatNum i
   where
     formatNum n =
       let ns = show n
           l = length ns
           toFill
-            | l <= 4 = 4 - l
+            | l <= 5 = 5 - l
             | otherwise = 0
       in ns ++ replicate toFill ' '
 

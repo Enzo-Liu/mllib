@@ -19,7 +19,7 @@ findBestMove b =  sortBy (flip compare `on` \m-> scoreTopLevel b m).
 scoreTopLevel :: Board -> Move -> Double
 scoreTopLevel b m
     | movedBoard == b   = 0.0
-    | otherwise         = expectiMiniMax 4 . RandNode 1.0 $ movedBoard
+    | otherwise         = expectiMiniMax 2 . RandNode 1.0 $ movedBoard
         where movedBoard = move m b
 
 -- Expectiminimax algorithm

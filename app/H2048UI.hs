@@ -84,14 +84,14 @@ newtype Cell = Cell Int
 
 drawUI :: Game -> [Widget Name]
 drawUI g =
-  [ C.vCenter $
-    vLimit 22 $
-    hBox
-      [ padLeft Max $ padRight (Pad 2) $ drawStatus g
-      , drawCells (_board g)
-      , padRight Max $ padLeft (Pad 2) $ drawPlayers (_players g)
-      ]
-  ]
+    [ C.vCenter $
+      vLimit 66 $
+      vBox [C.hCenter $ withAttr "insight" (drawBoardStat g),
+      hBox
+          [ padLeft Max $
+            padRight (Pad 2) $ drawStatus g
+          , drawCells (_board g)
+          , padRight Max $ padLeft (Pad 2) $ drawPlayers (_players g)]]]
 
 drawPlayers :: [Player] -> Widget Name
 drawPlayers players = hLimit 22 $ withBorderStyle BS.unicodeBold
@@ -113,8 +113,26 @@ drawStatus Game {_failed = failed, _board = b, _selected = p} =
   else status
   where
     name = maybe "Human" playerName p
-    status = [drawStat "Score" (score b), padTop (Pad 1) $ drawStat "Player" name]
+    status = [
+      drawStat "Score" (score b),
+      padTop (Pad 1) $ drawStat "Player" name
+      ]
     failHint = padTop (Pad 1) (withAttr "fail" $ drawStat "FAILED" "!!!")
+
+drawBoardStat :: Game -> Widget Name
+drawBoardStat Game{_board = b} =
+    hLimit 66 $
+    withBorderStyle BS.unicodeBold $
+    B.borderWithLabel (str "BoardInsight") $
+    vBox
+        [ drawStat "empty" (show . emptyNum $ stat)
+        , drawStat "order" (show . ordered $ stat)
+        , drawStat "maxAtEnd" (show . maxAtEnd $ stat)
+        , drawStat "diverge" (show . diverge $ stat)
+        , drawStat "closePairs" (show . closePairs $ stat)]
+  where
+    stat = toStat b
+
 
 drawStat :: String -> String -> Widget Name
 drawStat s n = padLeftRight 1
@@ -170,6 +188,7 @@ theMap =
     , ("cell1024", rgbfg 237 197 63)
     , ("cell2048", rgbfg 237 194 46)
     , ("fail", fg V.red)
+    , ("insight", rgbfg 237 194 46)
     ]
   where
     rgbfg :: Integer -> Integer -> Integer -> V.Attr

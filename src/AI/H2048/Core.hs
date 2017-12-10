@@ -11,6 +11,8 @@ module AI.H2048.Core
   , emptyCellNum
   , emptyPos
   , move
+  , Stat(..)
+  , toStat
   ) where
 
 import           H2048

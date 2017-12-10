@@ -15,7 +15,7 @@ nextMove :: Board -> IO (Maybe Move)
 nextMove b =
          return .
          listToMaybe .
-         sortBy (flip compare `on` \m -> scored 3 m b) .
+         sortBy (flip compare `on` \m -> scored 6 m b) .
          filter (canMove b)
          $ options
   where
@@ -25,38 +25,16 @@ nextMove b =
     scored n m b' = sum . map (\m' -> scored (n-1) m' (move m b')) $ options
 
 score :: Board -> Int
-score b@Board{_cells = cells} =
-    (1000 `div` (empty+1)) +
-    -- value +
-    sortScore - penalty
+score b = orderScore +
+          maxAtEndScore + closePairsScore - divergeScore - emptyScore
   where
-    empty = emptyCellNum b -- 0-16
-    value :: Int
-    value = sum $ map (sum . map ((^ 3) . log2Int)) cells -- 1 ~ 200
+    emptyScore = floor $ if en > 10 then 0 else 3 ^ (10-en)
+    stat = toStat b
+    en = emptyNum stat
     log2Int :: Int -> Int
-    log2Int = floor . logBase 2.0 . fromIntegral
-    sortScore =
-        maximum .
-        map
-            (\(t1,t2) ->
-                  sum (map lineSortScore $ t1 cells) +
-                  sum (map lineSortScore $ t2 cells)) $
-        [ (id, rotate270)
-        , (id, rotate90)
-        , (rotate180, rotate90)
-        , (rotate90, rotate180)
-        , (rotate270, rotate180)
-        , (rotate180, rotate270)]
-    lineSortScore l =
-        if isSorted l
-            then sum $ map ((\t->t^t) . log2Int) l
-            else 0
-    rotate270 = transpose . reverse
-    rotate90 = reverse . transpose
-    rotate180 = reverse . transpose
-    penalty = minimum . map divergeScore $ [id, rotate180, rotate90, rotate270]
-    divergeScore t = sum . map divergeLineScore $ t cells
-    divergeLineScore :: [Int] -> Int
-    divergeLineScore [] = 0
-    divergeLineScore [_] = 0
-    divergeLineScore (a:b':xs) = 4^(abs (log2Int a - log2Int b')) + divergeLineScore (b':xs)
+    log2Int = floor . (2.5^) . floor .  logBase 2.0 . fromIntegral
+    orderScore = 6 * sum (map log2Int (ordered stat)) + 100 * length (maxAtEnd stat)
+    maxAtEndScore = 4 * sum (map log2Int (maxAtEnd stat)) + 100 * length (maxAtEnd stat)
+    closePairsScore = 2 * sum (map log2Int (closePairs stat))
+    divergeScore = floor $ if dn < 6 then 0 else 3 ^ (dn - 6)
+    dn = length (diverge stat)

@@ -215,6 +215,6 @@ h2048UI = do
   chan <- newBChan 10
   _ <- forkIO $ forever $ do
     writeBChan chan Tick
-    threadDelay 200000
+    threadDelay 100000
   g <- initGame
   void $ customMain (V.mkVty V.defaultConfig) (Just chan) app g

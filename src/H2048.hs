@@ -45,7 +45,7 @@ pickRandom' :: [a] -> IO (Maybe a)
 pickRandom' xs = (\i -> xs ^? ix i) <$> randomRIO (0, length xs - 1)
 
 randomValue :: IO Int
-randomValue = pickRandom $ NE.fromList [2, 2, 2, 4]
+randomValue = pickRandom $ NE.fromList [2, 2, 2, 2, 2, 2,  2, 2, 2, 4]
 
 emptyPos :: Board -> [(Int, Int)]
 emptyPos Board {_cells = cells, _pos = pos} =

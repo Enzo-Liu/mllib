@@ -57,9 +57,9 @@ score b = 100000 + orderScore + closePairsScore  + maxAtEndScore + emptyScore - 
     en = emptyNum stat
     log2Int :: Int -> Int
     log2Int = floor . (5^) . floor .  logBase 2.0 . fromIntegral
-    orderScore = 50 * sum (map log2Int (ordered stat))
-    maxAtEndScore = 100 * sum (map log2Int (maxAtEnd stat))
-    closePairsScore =  4 * sum (map log2Int cp) -  200 * length cp
-    divergeScore = sum (map (8^) dv) + 200 * length dv
+    orderScore = 8 * sum (map log2Int (ordered stat))
+    maxAtEndScore = 5 * sum (map log2Int (maxAtEnd stat))
+    closePairsScore = 2 * sum (map log2Int cp) -  400 * length cp
+    divergeScore = 10 * sum (map (8^) dv) + 800 * length dv
     cp = closePairs stat
     dv = diverge stat

@@ -117,8 +117,12 @@ toStat b@Board{_cells = cells} =
     maxAtEnd' = filter (/=0) .
                   map (\l@(a:_)-> if a == maximum l then a else 0) .
                   _cells
-    orderer' = maximumBy (compare `on` sum) [orderT id ++ orderT rotate270,
-        orderT rotate180 ++ orderT rotate90]
+    orderer' = maximumBy (compare `on` sum) [
+        orderT id ++ orderT rotate90,
+        orderT id ++ orderT rotate270,
+        orderT rotate180 ++ orderT rotate270,
+        orderT rotate180 ++ orderT rotate90
+        ]
     orderT t = filter (/= 0). map maximum $ filter isSorted (_cells (t b))
     closePairs = concatMap closePairLine cells   ++
                  concatMap closePairLine (reverse . transpose $cells)

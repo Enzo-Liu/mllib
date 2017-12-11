@@ -1,55 +1,94 @@
-module AI.H2048.Expt where
+module AI.H2048.Expt(alphaBetaPlayer,
+                     minmaxPlayer
+                    ) where
 
 import           AI.H2048.Core
 import           Control.Lens
+import           Control.Applicative
+import           Control.Arrow (second)
 import           Data.Function     (on)
 import           Data.List         (maximum, maximumBy, sortBy, transpose)
 import           Data.List.Ordered (isSorted)
-import           Data.Maybe        (listToMaybe)
+import           Data.Maybe        (listToMaybe, maybeToList)
 import           Data.Ord          (comparing)
 
-data Prob = Prob Double Board
+data ProbBoard = PM [(Move,ProbBoard)] | PP [(Double,ProbBoard)] | PL Board
+  deriving Show
 
-exptPlayer :: Player
-exptPlayer = Player (PlayerName "Expt-AI") $ \b ->
-  nextMove b
+toPB :: Board -> ProbBoard
+toPB b = PP $ next2s ++ next4s
+  where pos = emptyPos b
+        l :: Double
+        l = fromInteger . toInteger $ length pos
+        next2s = pvboards 0.9 2
+        next4s = pvboards 0.1 4
+        pvboards p v = map ((\b' -> (p/l, PL b')) . nextBoards v b) pos
 
-nextMove :: Board -> IO (Maybe Move)
-nextMove b =
-         return .
-         listToMaybe .
-         sortBy (flip compare `on` \m -> scored 2 [Prob 1 (move m b)] ) .
-         filter (canMove b)
-         $ options
-  where
-    scored :: Int -> [Prob] -> Double
-    scored 0 ps = sum $ map s ps
-      where
-        s :: Prob -> Double
-        s (Prob p b) = p * (fromInteger . toInteger . score $ b)
-    scored n ps = scored (n-1) nexts
-      where nexts = concatMap next ps
-            next (Prob p b) = [Prob (p*0.1) (move m b')
-                     | p * 0.1 > 0.0001,
-                       b' <- map (nextBoard 4 b) (emptyPos b),
-                       m <- filter (canMove b') options
-                       ]
-                  ++ [Prob (p*0.9) (move m b')
-                     | p * 0.9 > 0.0001,
-                       b' <- map (nextBoard 2 b) (emptyPos b),
-                       m <- filter (canMove b') options
-                       ]
+nextBoards :: Int -> Board -> (Int,Int) ->  Board
+nextBoards v b (x,y) = b {_cells = _cells b & ix x . ix y .~ v}
 
+step :: ProbBoard -> ProbBoard
+step (PL b) = PM . map (liftA2 (,) id (toPB . flip move b)) . filter (canMove b) $ options
+step (PM mbs) = PM $ fmap (second step) mbs
+step (PP pbs) = PP $ fmap (second step) pbs
 
-avg l | len == 0 = 0
-      | otherwise = sum l `div` len
-      where len = length l
+level :: Int -> Board -> ProbBoard
+level n b = iterate step (PL b)  !! n
 
-nextBoard :: Int -> Board -> (Int,Int) -> Board
-nextBoard v b (x,y) = b {_cells= (_cells b) & ix x . ix y ^~ v}
+minmaxPB :: ProbBoard -> Maybe Double
+minmaxPB (PL b) = Just $ score b
+minmaxPB (PM []) = Nothing
+minmaxPB (PM mbs) = maximum . map (minmaxPB . snd) $ mbs
+minmaxPB (PP []) = Nothing
+minmaxPB (PP pbs) = minimum . map (minmaxPB . snd) $ pbs
 
-score :: Board -> Int
-score b = 100000 + orderScore + closePairsScore  + maxAtEndScore + emptyScore - divergeScore -- - total * 10 + emptyScore
+minmax :: ProbBoard -> Maybe Move
+minmax (PM mbs) = listToMaybe . map fst . sortBy
+  (comparing $ minmaxPB . snd) $ mbs
+minmax _ = error "error game tree"
+
+minmaxMove :: Board -> Maybe Move
+minmaxMove b = minmax (level 2 b)
+
+alphaBeta' ::  Double -> Double -> ProbBoard -> Double
+alphaBeta' _ _ (PL b) = score b
+alphaBeta' alpha beta (PM mbs) = case mbs of
+  ((_, pb):pbs) -> let v = max maxbound' $ alphaBeta' alpha beta pb
+                       alpha' = max alpha v
+            in if beta <= alpha' || null pbs
+               then v else alphaBeta' alpha' beta (PM pbs)
+  [] -> 0
+alphaBeta' alpha beta (PP pbs) = case pbs of
+  ((_, pb):pbs) -> let v = min minbound' $ alphaBeta' alpha beta pb
+                       beta' = min beta v
+            in if beta' <= alpha || null pbs
+               then v else alphaBeta' alpha beta' (PP pbs)
+  [] -> 0
+
+alphaBeta :: ProbBoard -> Double
+alphaBeta (PL b) = score b
+alphaBeta pb = alphaBeta' maxbound' minbound' pb
+
+alphaBetaMove' :: ProbBoard -> Maybe Move
+alphaBetaMove' (PM mbs) = listToMaybe . map fst . sortBy
+  (comparing $ alphaBeta . snd) $ mbs
+alphaBetaMove' _ = error "error game tree"
+
+alphaBetaMove :: Board -> Maybe Move
+alphaBetaMove b = alphaBetaMove' (level 3 b)
+
+maxbound', minbound' :: Double
+maxbound' = -100000000
+minbound' = 1000000000
+
+minmaxPlayer :: Player
+minmaxPlayer = Player (PlayerName "Minmax-AI") $ return . minmaxMove
+
+alphaBetaPlayer :: Player
+alphaBetaPlayer = Player (PlayerName "AlphaBeta-AI") $ return . alphaBetaMove
+
+score :: Board -> Double
+score b = fromIntegral $ 100000 + orderScore + closePairsScore  + maxAtEndScore + emptyScore - divergeScore -- - total * 10 + emptyScore
   where
     emptyScore = 4000 * en
     total = sum (map sum (_cells b))

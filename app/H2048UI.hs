@@ -205,7 +205,8 @@ initGame = fmap genGame initBoard
       Game {_board = b,
             _players = [ randomPlayer
                        , minmaxPlayer
-                       , exptPlayer
+                       , alphaBetaPlayer
+                       -- , exptPlayer
                        ],
             _failed = False,
             _selected = Nothing}

@@ -1,13 +1,12 @@
 module H2048AI
   ( minmaxPlayer
   , randomPlayer
-  , exptPlayer
+  , alphaBetaPlayer
   , playerName
   , getMove
   , Player
   ) where
 
 import           AI.H2048.Random
-import           AI.H2048.Minmax
 import           AI.H2048.Expt
 import           AI.H2048.Core

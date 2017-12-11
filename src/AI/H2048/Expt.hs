@@ -79,7 +79,7 @@ alphaBetaMove b = alphaBetaMove' (level 3 b)
 
 maxbound', minbound' :: Double
 maxbound' = -100000000
-minbound' = 1000000000
+minbound' = 100000000
 
 minmaxPlayer :: Player
 minmaxPlayer = Player (PlayerName "Minmax-AI") $ return . minmaxMove

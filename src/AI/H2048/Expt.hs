@@ -59,10 +59,10 @@ alphaBeta' alpha beta (PM mbs) = case mbs of
                then v else alphaBeta' alpha' beta (PM pbs)
   [] -> 0
 alphaBeta' alpha beta (PP pbs) = case pbs of
-  ((_, pb):pbs) -> let v = min minbound' $ alphaBeta' alpha beta pb
-                       beta' = min beta v
+  ((_, pb):pbs') -> let v = min minbound' $ alphaBeta' alpha beta pb
+                        beta' = min beta v
             in if beta' <= alpha || null pbs
-               then v else alphaBeta' alpha beta' (PP pbs)
+               then v else alphaBeta' alpha beta' (PP pbs')
   [] -> 0
 
 alphaBeta :: ProbBoard -> Double
